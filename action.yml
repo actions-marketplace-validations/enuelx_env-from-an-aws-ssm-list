@@ -1,14 +1,14 @@
-name: "env-from-aws-ssm-list"
-description: "Pass SSM Parameter Store values from a file to dotenv file"
+name: "Create dotenv from AWS SSM"
+description: "Get many SSM Parameter Store values ​​from a file to the dotenv file"
 branding:
-  icon: "archive"
+  icon: "cloud"
   color: "blue"
-author: "enuelx"
+author: "3nu3l"
 inputs:
   inputFilename:
     description: "Filename received as parameter or .env.map by default"
   outputFilename:
     description: "Filename received as parameter or .env by default"
 runs:
-  using: "node16"
+  using: "node20"
   main: "dist/index.js"

@@ -15,13 +15,23 @@ var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (
 }) : function(o, v) {
     o["default"] = v;
 });
-var __importStar = (this && this.__importStar) || function (mod) {
-    if (mod && mod.__esModule) return mod;
-    var result = {};
-    if (mod != null) for (var k in mod) if (k !== "default" && Object.prototype.hasOwnProperty.call(mod, k)) __createBinding(result, mod, k);
-    __setModuleDefault(result, mod);
-    return result;
-};
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
     function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
@@ -36,21 +46,21 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const core = __importStar(require("@actions/core"));
-const aws_sdk_1 = __importDefault(require("aws-sdk"));
+const client_ssm_1 = require("@aws-sdk/client-ssm");
 const fs_1 = __importDefault(require("fs"));
 const util_1 = require("util");
 const readFileAsync = (0, util_1.promisify)(fs_1.default.readFile);
 const writeFileAsync = (0, util_1.promisify)(fs_1.default.writeFile);
 function getParameter(name) {
     return __awaiter(this, void 0, void 0, function* () {
-        const region = process.env.AWS_DEFAULT_REGION || 'sa-east-1';
-        const ssm = new aws_sdk_1.default.SSM({ region });
-        const response = yield ssm
-            .getParameter({
+        const region = process.env.AWS_DEFAULT_REGION || 'us-east-1';
+        const ssm = new client_ssm_1.SSMClient({ region });
+        const input = {
             Name: name,
             WithDecryption: true
-        })
-            .promise();
+        };
+        const command = new client_ssm_1.GetParameterCommand(input);
+        const response = yield ssm.send(command);
         if (response.Parameter && response.Parameter.Value) {
             return response.Parameter.Value;
         }
@@ -78,9 +88,18 @@ function writeEnv(envMap, filename) {
             line = line.trim();
             if (line && !line.startsWith('#')) {
                 const [key, awsPath] = line.split('=');
-                const value = yield getParameter(awsPath.trim());
-                const filteredKey = key.replace(/[^A-Z]/g, ''); // Filter out non-uppercase letters
-                fileData += `${filteredKey}=${value}\n`;
+                try {
+                    const value = yield getParameter(awsPath.trim());
+                    fileData += `${key}=${value}\n`;
+                }
+                catch (error) {
+                    if (error instanceof Error) {
+                        console.error(`Error al obtener el parámetro para el path ${awsPath}: ${error.message}`);
+                    }
+                    else {
+                        console.error(`Error al obtener el parámetro para el path ${awsPath}`);
+                    }
+                }
             }
         }
         yield writeFileAsync(filename, fileData);
